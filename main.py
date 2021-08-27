@@ -15,7 +15,7 @@ def get_params(message):
 
 ''' Get the parameters in the header section of the DNS request '''
 def get_header_params(message):
-	tran_id = message[0] + message[1]*2
+	tran_id = (message[0]<<1) + message[1]
 	rd = (message[2]>>0)&1
 	tc = (message[2]>>1)&1
 	aa = (message[2]>>2)&1
@@ -31,7 +31,8 @@ def get_header_params(message):
 
 ''' Get the parameters in the question section of the DNS request '''
 def get_question_params(message):
-	qname = get_domain(12)  # Fetch the domain with labels/pointers starting at 12 (takes care of compression)
+	domain2 = []
+	qname = get_domain(12,domain2)  # Fetch the domain with labels/pointers starting at 12 (takes care of compression)
 	index = -1  # Get the byte index for QTYPE field
 	for i in range(12,len(message)):
 		if(message[i] == 0):
