@@ -27,43 +27,55 @@ def get_header_params(message):
 	return (tran_id,rd,tc,aa,opcode,qr,rcode,ra)
 
 
+
+
 ''' Get the parameters in the question section of the DNS request '''
 def get_question_params(message):
-	index = 12   # The 12th Octet of the message contains the length of the first domain part
-	flag = True # Flag to break loop when we cross the end of the QNAME section
-	domain_list = []  # Contains list of all parts of the domain. Eg. ['a','b','c'] is equiv to "a.b.c"
-	q_type = 0   # The question type
-
-	while(flag):		
-		length = message[index]
-		domain = ""
-
-		for i in range(0,length):
-			if((index+i+1) >= len(message)):   # Can happen in case of invalid message format
-				break
-			if(message[index+1+i] == 0):
-				flag = False
-				index = index+2+i
-				break
-			domain += str(chr(message[index+1+i]))   # Append ASCII character to domain string
-
-		if(not flag):
+	qname = get_domain(12)  # Fetch the domain with labels/pointers starting at 12 (takes care of compression)
+	index = -1  # Get the byte index for QTYPE field
+	for i in range(12,len(message)):
+		if(message[i] == 0):
+			index = i+1
 			break
+		elif(message[i]>=192):
+			index = i+2
+			break
+	qtype = (message[index]<<1) + (message[index+1])
+	qclass = (message[index+2]<<1) + (message[index+3])
+	
+	return (qname,qtype,qclass)
 
-		index += length+1
 
 
-		domain_list.append(domain)
-	if(index+1<len(message)):
-		q_type = message[index] +message[index+1]*2
-	return (domain_list,q_type)
+
+
+
+def get_domain(start,domain=[]):
+	index = start
+	
+	if((message[index]) >= 192):
+		print("Detected compression")
+		return get_domain((message[index]<<1)+(message[index+1])-192)
+	else:
+		length = message[index]
+		label = ""
+		for i in range(0,length):
+			label += str(chr(message[index+i+1]))
+		domain.append(label)
+		
+		if(message[index+length+1] == 0):
+			return domain	
+		return get_domain(index+length+1,domain)
+
+
+
 
 
 
 
 while True:
 	message, address = s.recvfrom(1024)
-	print(message)
+	
 	get_params(message)
 	s.sendto(message,0,address)
 s.close()
